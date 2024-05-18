@@ -7,6 +7,7 @@
 #include "src/DBexceptions.h"
 #include "src/RecordBuilder.h"
 #include "src/Condition.h"
+#include "src/DatabaseFactory.h"
 
 class Timer
 {
@@ -47,17 +48,21 @@ int main()
 		
 
 		// Create the data storage.
-		Database db("my_db");
 
-		db.GetSchama().Print();
+		DatabaseFactory dbFactory;
+		dbFactory.BuildDatabaseType(DatabaseType::InMemory, schema);
 
-		/*for (int i = 0; i < 10; i++)
+		std::unique_ptr<Database> db = dbFactory.GetDatabase();
+
+		db->GetSchama().Print();
+
+		for (int i = 0; i < 10; i++)
 		{
 			Record record;
 			record.AddAttr({ "name", ColumnType::String, "Test Name # " + std::to_string(i) });
 			record.AddAttr({ "age", ColumnType::Int, std::to_string(i) });
-			db.InsertInto("users", record);
-		}*/
+			db->InsertInto("users", record);
+		}
 
 		std::shared_ptr<Condition> condition1 = std::make_shared<GreaterThanOrEqualCondition>(
 			std::make_shared<ColumnNameOperand>("age"),
@@ -86,7 +91,7 @@ int main()
 
 		std::function<bool(const char*)> compiledCondition = condition->Compile(users);
 
-		auto selections = db.Select("users");
+		auto selections = db->Select("users");
 		for (int i = 0; i < selections.size(); i++)
 		{
 			const Record& r = selections[i];

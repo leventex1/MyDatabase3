@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <memory>
 #include "Record.h"
 #include "Schema.h"
 #include "StorageManager.h"
@@ -29,9 +30,7 @@
 class Database
 {
 public:
-	Database(const Schema& schema);
-	Database(const std::string& dbName);
-
+	Database(const Schema& schema, const std::shared_ptr<StorageManager>& storageManager);
 
 	void Commit();
 	void DropAll();
@@ -56,13 +55,13 @@ public:
 	inline const Schema& GetSchama() const { return m_Schema; }
 	inline void SetSchema(const Schema& schema) { m_Schema = schema; }
 
-	inline const StorageManager& GetStorageManager() const { return m_StorageManager; }
-	inline void SetStorageManager(const StorageManager& smanager) { m_StorageManager = smanager; }
+	inline const std::shared_ptr<StorageManager>& GetStorageManager() const { return m_StorageManager; }
+	inline void SetStorageManager(const std::shared_ptr<StorageManager>& smanager) { m_StorageManager = smanager; }
 
 private:
 	const Table* _GetTable(const std::string& tableName) const;
 
 private:
 	Schema m_Schema;
-	StorageManager m_StorageManager;
+	std::shared_ptr<StorageManager> m_StorageManager;
 };

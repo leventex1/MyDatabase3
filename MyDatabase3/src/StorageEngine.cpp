@@ -3,77 +3,24 @@
 #include "FileManager.h"
 
 
-InMemoryStorageEngine::InMemoryStorageEngine(const std::shared_ptr<IPageFactory> pageFactory)
-	: m_PageFactory(pageFactory)
-{
-}
-
-InMemoryStorageEngine::~InMemoryStorageEngine()
-{
-}
-
-void InMemoryStorageEngine::AddRecord(const Record& record)
-{
-}
-
-Record InMemoryStorageEngine::GetRecord(const Table& table, int id)
-{
-
-	return Record();
-}
-
-std::vector<Record> InMemoryStorageEngine::GetRecords(const Table& table)
-{
-	return { };
-}
-
-void InMemoryStorageEngine::Update(const Record& record, int id)
-{
-}
-
-void InMemoryStorageEngine::DeleteRecord(int id)
-{
-}
-
-
-StorageEngine::StorageEngine()
-	: m_TableName("")
-{
-	InitPage();
-}
-
-StorageEngine::StorageEngine(const Table& table)
-	: m_BytesPerRecord(table.GetBytes()), m_TableName(table.GetName())
-{
-	InitPage();
-}
-
-void StorageEngine::InitPage()
-{
-	if (m_BytesPerRecord + m_FlagBytesPerRecord > PAGE_SIZE)
-	{
-		throw DatabaseException("Too big record size! " + std::to_string(m_BytesPerRecord + m_FlagBytesPerRecord) + ">" + std::to_string(PAGE_SIZE));
-	}
-	m_Pages.clear();
-}
-
 void StorageEngine::AddRecord(const Record& record)
 {
 	// Record's first attribute is the ID (int). [ (int*)((char*)data + 0) <-- id ]
+	const int bytesPerRecord = GetBytesPerRecord();
 
-	int index = m_Header.FreeRecordIndex;
-	char* data = _GetRecordAt(index);
-	char* flag = data + m_BytesPerRecord;
+	int index = GetHeader().FreeRecordIndex;
+	char* data = GetRecordAt(index);
+	char* flag = data + bytesPerRecord;
 	while (*flag != 0)
 	{
-		data = _GetRecordAt(++index);
-		flag = data + m_BytesPerRecord;
+		data = GetRecordAt(++index);
+		flag = data + bytesPerRecord;
 	}
-	m_Header.FreeRecordIndex++;
+	GetHeader().FreeRecordIndex++;
 
-	char* newRecord = RecordsToBytes(record, m_BytesPerRecord);
+	char* newRecord = RecordsToBytes(record, bytesPerRecord);
 
-	memcpy((void*)data, (const void*)newRecord, m_BytesPerRecord);
+	memcpy((void*)data, (const void*)newRecord, bytesPerRecord);
 	*(int*)data = index;
 	*flag = 1;
 
@@ -82,7 +29,7 @@ void StorageEngine::AddRecord(const Record& record)
 
 Record StorageEngine::GetRecord(const Table& table, int id)
 {
-	char* data = _FindRecordById(id);
+	char* data = FindRecordById(id);
 
 	RecordBuilder builder(table, data);
 
@@ -93,12 +40,12 @@ std::vector<Record> StorageEngine::GetRecords(const Table& table)
 {
 	std::vector<Record> records;
 
-	int maxNumRecordsPerPage = PAGE_SIZE / (m_BytesPerRecord + m_FlagBytesPerRecord);
-	int numPages = m_Header.NumPages;
+	int maxNumRecordsPerPage = GetBytesPerPage() / (GetBytesPerRow());
+	int numPages = GetHeader().NumPages;
 	for (int i = 0; i < numPages * maxNumRecordsPerPage; ++i)
 	{
-		char* record = _GetRecordAt(i);
-		char* flag = record + m_BytesPerRecord;
+		char* record = GetRecordAt(i);
+		char* flag = record + GetBytesPerRecord();
 		if (*flag == 1)
 		{
 			RecordBuilder builder(table, record);
@@ -111,11 +58,11 @@ std::vector<Record> StorageEngine::GetRecords(const Table& table)
 
 void StorageEngine::Update(const Record& record, int id)
 {
-	char* data = _FindRecordById(id);
+	char* data = FindRecordById(id);
 
-	char* newRecord = RecordsToBytes(record, m_BytesPerRecord);
+	char* newRecord = RecordsToBytes(record, GetBytesPerRecord());
 
-	memcpy((void*)data, (const void*)newRecord, m_BytesPerRecord);
+	memcpy((void*)data, (const void*)newRecord, GetBytesPerRecord());
 	*(int*)data = id;
 
 	delete[] newRecord;
@@ -123,65 +70,72 @@ void StorageEngine::Update(const Record& record, int id)
 
 void StorageEngine::DeleteRecord(int id)
 {
-	char* data = _FindRecordById(id);
-	memset((void*)data, 0, m_BytesPerRecord + m_FlagBytesPerRecord);
-	if (id < m_Header.FreeRecordIndex)
+	char* data = FindRecordById(id);
+	memset((void*)data, 0, GetBytesPerRow());
+	if (id < GetHeader().FreeRecordIndex)
 	{
-		m_Header.FreeRecordIndex = id;
+		GetHeader().FreeRecordIndex = id;
 	}
 }
 
-char* StorageEngine::_GetRecordAt(int index)
+
+InMemoryStorageEngine::InMemoryStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory)
+	: m_PageFactory(pageFactory), m_BytesPerRecord(bytesPerRecord)
 {
-	int maxNumRecordsPerPage = PAGE_SIZE / (m_BytesPerRecord + m_FlagBytesPerRecord);
+	m_BytesPerRow = bytesPerRecord + 1;  // 1 flag byte.
+}
+
+InMemoryStorageEngine::~InMemoryStorageEngine()
+{
+}
+
+void InMemoryStorageEngine::Save() const
+{
+}
+
+void InMemoryStorageEngine::Load()
+{
+}
+
+char* InMemoryStorageEngine::GetRecordAt(int index)
+{
+	int maxNumRecordsPerPage = GetBytesPerPage() / (GetBytesPerRow());
 	int PageIndex = index / maxNumRecordsPerPage;
 	int IndexInPage = index % maxNumRecordsPerPage;
 
-	Page& page = _LoadPage(PageIndex);
+	std::unique_ptr<IPage>& page = LoadPage(PageIndex);
 
-	return page.GetPage() + IndexInPage * (m_BytesPerRecord + m_FlagBytesPerRecord);
+	return page->GetData() + IndexInPage * (GetBytesPerRow());
 }
 
-char* StorageEngine::_FindRecordById(int id)
+char* InMemoryStorageEngine::FindRecordById(int id)
 {
-	int maxNumRecordsPerPage = PAGE_SIZE / (m_BytesPerRecord + m_FlagBytesPerRecord);
+	int maxNumRecordsPerPage = GetBytesPerPage() / (GetBytesPerRow());
 	int PageIndex = id / maxNumRecordsPerPage;
 	int IndexInPage = id % maxNumRecordsPerPage;
 
-	if(PageIndex >= m_Header.NumPages)
+	if(PageIndex >= GetHeader().NumPages)
 		throw StorageEnginePageIndexOutOfBoundException();
 
-	return _GetRecordAt(id);
+	std::unique_ptr<IPage>& page = LoadPage(PageIndex);
+
+	return page->GetData() + IndexInPage * (GetBytesPerRow());
 }
 
-Page& StorageEngine::_LoadPage(int index)
+std::unique_ptr<IPage>& InMemoryStorageEngine::LoadPage(int index)
 {
-	for (Page& page : m_Pages)
+	for (std::unique_ptr<IPage>& page : m_Pages)
 	{
-		if (page.GetHeader().PageIndex == index)
+		if (page->GetHeader().PageIndex == index)
 			return page;
 	}
 
-	m_Pages.push_back(Page(PAGE_SIZE));
-	Page& newPage = m_Pages[m_Pages.size() - 1];
-	newPage.GetHeader().PageIndex = index;
+	m_PageFactory->ConstructPage();
+	m_Pages.push_back(m_PageFactory->GetPage());
+	std::unique_ptr<IPage>& newPage = m_Pages[m_Pages.size() - 1];
+	newPage->GetHeader().PageIndex = index;
 
-	if (m_Pages.size() > MAX_NUM_PAGES)
-	{
-		m_Pages.pop_front();
-	}
-
-	FileManager* fmanager = FileManager::GetInstance();
-
-	try
-	{
-		fmanager->ReadPageData(m_TableName, index, newPage.GetPage(), newPage.GetHeader().NumBytes);
-		fmanager->ReadBinaryFile(m_TableName, m_TableName + "." + std::to_string(index) + ".header", (char*)(&newPage.GetHeader()), sizeof(PageHeader));
-	}
-	catch (const FileManagerFileDoesNotExistsException& e)
-	{
-		m_Header.NumPages++;
-	}
+	GetHeader().NumPages++;
 
 	return newPage;
 }
