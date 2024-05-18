@@ -7,18 +7,58 @@
 #include "StorageEngine.h"
 
 
-class IStorageManager
+class StorageManager
 {
 public:
-	virtual ~IStorageManager() = default;
+	StorageManager() = default;
+	StorageManager(std::map<std::string, std::unique_ptr<StorageEngine>>& store) : m_Store(std::move(store)) { }
+	virtual ~StorageManager() = default;
 
 	virtual void BuildStorage(const Schema& schema) = 0;
 	virtual void Commit() = 0;
 	virtual void DropAll() = 0;
+
+	/*
+		Inserts a record into the database. The record must not contain the Id attribute.
+	*/
+	virtual void Insert(const Table& table, const Record& record);
+	
+	/*
+		Assumes table exists in store.
+		Select every record from the store.
+	*/
+	virtual std::vector<Record> Select(const Table& table);
+	
+	/*
+		Assumes table exists in store.
+		Select record at id from the store.
+	*/
+	virtual Record Select(const Table& table, int id);
+	
+	/*
+		Record is a raw record, it does not contain the id attr (first attr).
+	*/
+	virtual void Update(const Table& table, const Record& record, int id);
+
+	/*
+		Record contain the id attr (first attr). If not exists throw "StorageManagerException"
+	*/
+	virtual void Update(const Table& table, const Record& record);
+
+	/*
+		Delete the index == id row from the database if exits. If not throw "StorageManagerException"
+	*/
+	void Delete(const Table& table, int id);
+
+private:
+	std::unique_ptr<StorageEngine>& GetStorageEngine(const std::string& tableName);
+
+protected:
+	std::map<std::string, std::unique_ptr<StorageEngine>> m_Store;
 };
 
 
-class InMemoryStorageManager : public IStorageManager
+class InMemoryStorageManager : public StorageManager
 {
 public:
 	InMemoryStorageManager() = default;
@@ -27,62 +67,4 @@ public:
 	virtual void BuildStorage(const Schema& schema) override;
 	virtual void Commit() override;
 	virtual void DropAll() override;
-
-private:
-	std::map<std::string, StorageEngine> m_Store;
-};
-
-
-class StorageManager
-{
-public:
-	StorageManager();
-	~StorageManager();
-
-	/*
-		Tires to build the database with the given db name from the folder structure.
-	*/
-	Schema BuildStore(const std::string& dbName);
-	/*
-		Assumes schema is valid.
-	*/
-	void BuildStore(const Schema& schema);
-
-	/*
-		Assumes table exists in store and record fits into the schema.
-	*/
-	void Insert(const Table& table, const Record& record);
-
-	/*
-		Assumes table exists in store.
-		Select every record from the store.
-	*/
-	std::vector<Record> Select(const Table& table);
-
-	/*
-		Assumes table exists in store.
-		Select record at id from the store.
-	*/
-	Record Select(const Table& table, int id);
-
-	/*
-		Record is a raw record, it does not contain the id attr (first attr).
-	*/
-	void Update(const Table& table, const Record& record, int id);
-	/*
-		Record contain the id attr (first attr).
-	*/
-	void Update(const Table& table, const Record& record);
-
-
-	void Delete(const Table& table, int id);
-
-	void Commit();
-	void DropAll();
-
-private:
-	void _BuildTableFolderStructure(const Schema& schema);
-
-private:
-	std::map<std::string, StorageEngine> m_Store;
 };

@@ -18,84 +18,87 @@ public:
 };
 
 
-class IStorageEngine
-{
-public:
-	virtual ~IStorageEngine() = default;
-
-	virtual void AddRecord(const Record& record) = 0;
-	virtual Record GetRecord(const Table& table, int id) = 0;
-	virtual std::vector<Record> GetRecords(const Table& table) = 0;
-	virtual void Update(const Record& record, int id) = 0;
-	virtual void DeleteRecord(int id) = 0;
-
-	virtual void Save() = 0;
-	virtual void Load() = 0;
-};
-
-
-class InMemoryStorageEngine : public IStorageEngine
-{
-public:
-	InMemoryStorageEngine(const std::shared_ptr<IPageFactory> pageFactory);
-	virtual ~InMemoryStorageEngine();
-
-	virtual void AddRecord(const Record& record) override;
-	virtual Record GetRecord(const Table& table, int id) override;
-	virtual std::vector<Record> GetRecords(const Table& table) override;
-	virtual void Update(const Record& record, int id) override;
-	virtual void DeleteRecord(int id) override;
-
-private:
-	std::shared_ptr<IPageFactory> m_PageFactory;
-	std::vector<std::unique_ptr<IPage>> m_Pages;
-};
-
-
 struct EngineHeader
 {
 	int NumPages = 0;
 	int FreeRecordIndex = 0;
 };
 
+
 class StorageEngine
 {
 public:
-	StorageEngine();
-	StorageEngine(const Table& table);
-
-	void InitPage();
+	virtual ~StorageEngine() = default;
 
 	/*
-		Assumes the record is the right record structure.
-		Auto populates the first 4 bytes(int) as the id.
+		Always put the record in the first empty spot (fill the database sequentially) and sets the id to the spot's index.
+		Set the first flag byte to 1 and pupulate the first record 4byte with the id(int).
 	*/
-	void AddRecord(const Record& record);
-	Record GetRecord(const Table& table, int id);
-	std::vector<Record> GetRecords(const Table& table);
-	void Update(const Record& record, int id);
-	void DeleteRecord(int id);
-	
-	inline size_t GetPageBytes() const { return PAGE_SIZE; }
+	virtual void AddRecord(const Record& record);
 
-	inline const std::deque<Page>& GetPages() const { return m_Pages; }
-	inline std::deque<Page>& GetPages() { return m_Pages; }
+	/*
+		Gets the Record by id if it's exits. If not throw "StorageEnginePageIndexOutOfBoundException".
+	*/
+	virtual Record GetRecord(const Table& table, int id);
 
-	inline const EngineHeader& GetHeader() const { return m_Header; }
-	inline EngineHeader& GetHeader() { return m_Header; }
+	/*
+		Returns all the Records from the storage.
+	*/
+	virtual std::vector<Record> GetRecords(const Table& table);
 
-private:
-	char* _GetRecordAt(int index);
-	char* _FindRecordById(int id);
+	/*
+		Expects a valid record with id as the first attribute for compatibility reasons.
+		Overwrites the existing record at index == id with the inputed record.
+		The newly updated record will inherite the previous id.
+	*/
+	virtual void Update(const Record& record, int id);
 
-	Page& _LoadPage(int index);
+	/*
+		Deletes the index == id record.
+	*/
+	virtual void DeleteRecord(int id);
+
+	virtual void Save() const = 0;
+	virtual void Load() = 0;
+
+	virtual int GetBytesPerPage() const = 0;
+	virtual int GetBytesPerRow() const = 0;
+	virtual int GetBytesPerRecord() const = 0;
+
+	virtual const EngineHeader& GetHeader() const = 0;
+	virtual EngineHeader& GetHeader() = 0;
+
+protected:
+	virtual char* GetRecordAt(int index) = 0;
+	virtual char* FindRecordById(int id) = 0;
+};
+
+
+class InMemoryStorageEngine : public StorageEngine
+{
+public:
+	InMemoryStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory);
+	virtual ~InMemoryStorageEngine();
+
+	virtual void Save() const override;
+	virtual void Load() override;
+
+	virtual int GetBytesPerRow() const override { return m_BytesPerRow; }
+	virtual int GetBytesPerRecord() const override { return m_BytesPerRecord; }
+	virtual int GetBytesPerPage() const override { return m_PageFactory->GetByterPerPage(); }
+
+	virtual const EngineHeader& GetHeader() const { return m_Header; }
+	virtual EngineHeader& GetHeader() { return m_Header; }
+
+protected:
+	virtual char* GetRecordAt(int index) override;
+	virtual char* FindRecordById(int id) override;
+	virtual std::unique_ptr<IPage>& LoadPage(int index);
 
 private:
 	EngineHeader m_Header;
-	std::string m_TableName;
-
-	int m_BytesPerRecord = 0;	
-	int m_FlagBytesPerRecord = 1;  // +1 byte flag.
-
-	std::deque<Page> m_Pages;
+	int m_BytesPerRecord;
+	int m_BytesPerRow;  // bytesPerRow - bytesPerRecord = flagBytes.
+	std::shared_ptr<IPageFactory> m_PageFactory;
+	std::vector<std::unique_ptr<IPage>> m_Pages;
 };

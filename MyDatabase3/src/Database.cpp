@@ -3,15 +3,9 @@
 #include "StorageManager.h"
 
 
-Database::Database(const Schema& schema)
-	: m_Schema(schema)
-{ 
-	m_StorageManager.BuildStore(schema);
-}
-
-Database::Database(const std::string& dbName)
+Database::Database(const Schema& schema, const std::shared_ptr<StorageManager>& storageManager)
+	: m_Schema(schema), m_StorageManager(storageManager)
 {
-	m_Schema = m_StorageManager.BuildStore(dbName);
 }
 
 const Table* Database::_GetTable(const std::string& tableName) const
@@ -29,12 +23,12 @@ const Table* Database::_GetTable(const std::string& tableName) const
 
 void Database::Commit()
 {
-	m_StorageManager.Commit();
+	m_StorageManager->Commit();
 }
 
 void Database::DropAll()
 {
-	m_StorageManager.DropAll();
+	m_StorageManager->DropAll();
 }
 
 void Database::InsertInto(const std::string& tableName, const Record& record)
@@ -56,21 +50,21 @@ void Database::InsertInto(const std::string& tableName, const Record& record)
 			throw InsertionException("Table and record column attributes not match!");
 	}
 
-	m_StorageManager.Insert(*table, record);
+	m_StorageManager->Insert(*table, record);
 }
 
 std::vector<Record> Database::Select(const std::string& tableName)
 {
 	const Table* table = _GetTable(tableName);
 
-	return m_StorageManager.Select(*table);
+	return m_StorageManager->Select(*table);
 }
 
 Record Database::Select(const std::string& tableName, int id)
 {
 	const Table* table = _GetTable(tableName);
 
-	return m_StorageManager.Select(*table, id);
+	return m_StorageManager->Select(*table, id);
 }
 
 std::vector<Record> Database::SelectWhere(const std::string& tableName, const std::shared_ptr<Condition> condition)
@@ -101,7 +95,7 @@ void Database::Update(const std::string& tableName, const Record& record, int id
 			throw InsertionException("Table and record column attributes not match!");
 	}
 
-	m_StorageManager.Update(*table, record, id);
+	m_StorageManager->Update(*table, record, id);
 }
 
 void Database::Update(const std::string& tableName, const Record& record)
@@ -123,11 +117,11 @@ void Database::Update(const std::string& tableName, const Record& record)
 			throw InsertionException("Table and record column attributes not match!");
 	}
 
-	m_StorageManager.Update(*table, record);
+	m_StorageManager->Update(*table, record);
 }
 
 void Database::Delete(const std::string& tableName, int id)
 {
 	const Table* table = _GetTable(tableName);
-	m_StorageManager.Delete(*table, id);
+	m_StorageManager->Delete(*table, id);
 }

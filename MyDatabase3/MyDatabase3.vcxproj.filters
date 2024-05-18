@@ -54,6 +54,9 @@
     <ClCompile Include="src\FileIO.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\DatabaseFactory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Schema.h">
@@ -95,7 +98,7 @@
     <ClInclude Include="src\FileIO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\StructureBuilder.h">
+    <ClInclude Include="src\DatabaseFactory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

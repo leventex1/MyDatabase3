@@ -32,6 +32,7 @@ public:
 	virtual ~IPageFactory() = default;
 	virtual void ConstructPage() = 0;
 	virtual std::unique_ptr<IPage> GetPage() = 0;
+	virtual int GetByterPerPage() const = 0;
 };
 
 
@@ -39,6 +40,8 @@ class DefaultPage : public IPage
 {
 public:
 	DefaultPage(const PageHeader& pageHeader);
+	DefaultPage(const DefaultPage& other);
+	DefaultPage(DefaultPage&& other) noexcept;
 	virtual ~DefaultPage();
 
 	virtual const char* GetData() const override { return m_Data; }
@@ -55,31 +58,33 @@ private:
 class DefaultPageFactory : public IPageFactory
 {
 public:
-	DefaultPageFactory(int numPageBytes) : m_NumPageBytes(numPageBytes) { }
+	DefaultPageFactory(int bytesPerPage) : m_BytesPerPage(bytesPerPage) { }
 	virtual ~DefaultPageFactory() = default;
-	virtual void ConstructPage() override { m_Page = std::make_unique<DefaultPage>(PageHeader(m_NumPageBytes, 0)); }
+	virtual void ConstructPage() override { m_Page = std::make_unique<DefaultPage>(PageHeader(m_BytesPerPage, 0)); }
 	virtual std::unique_ptr<IPage> GetPage() override { return std::move(m_Page); }
+	virtual int GetByterPerPage() const { return m_BytesPerPage; }
+
 private:
-	int m_NumPageBytes;
+	int m_BytesPerPage;
 	std::unique_ptr<IPage> m_Page;
 };
 
 
-class Page
-{
-public:
-	Page(int numBytes);
-	Page(const Page& other);
-	Page(Page&& other) noexcept;
-	~Page();
-
-	inline const char* GetPage() const { return m_Page; }
-	inline char* GetPage() { return m_Page; }
-
-	inline const PageHeader& GetHeader() const { return m_Header; }
-	inline PageHeader& GetHeader() { return m_Header; }
-
-private:
-	PageHeader m_Header;
-	char* m_Page = nullptr;
-};
+//class Page
+//{
+//public:
+//	Page(int numBytes);
+//	Page(const Page& other);
+//	Page(Page&& other) noexcept;
+//	~Page();
+//
+//	inline const char* GetPage() const { return m_Page; }
+//	inline char* GetPage() { return m_Page; }
+//
+//	inline const PageHeader& GetHeader() const { return m_Header; }
+//	inline PageHeader& GetHeader() { return m_Header; }
+//
+//private:
+//	PageHeader m_Header;
+//	char* m_Page = nullptr;
+//};
