@@ -5,6 +5,7 @@
 #include <deque>
 #include <vector>
 #include "Page.h"
+#include <functional>
 
 
 #define PAGE_SIZE 4096
@@ -28,6 +29,7 @@ struct EngineHeader
 class StorageEngine
 {
 public:
+	StorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory, const EngineHeader& engineHeader);
 	virtual ~StorageEngine() = default;
 
 	/*
@@ -45,6 +47,7 @@ public:
 		Returns all the Records from the storage.
 	*/
 	virtual std::vector<Record> GetRecords(const Table& table);
+	virtual std::vector<Record> GetRecords(const Table& table, const std::function<bool(const char*)>& condition);
 
 	/*
 		Expects a valid record with id as the first attribute for compatibility reasons.
@@ -58,19 +61,27 @@ public:
 	*/
 	virtual void DeleteRecord(int id);
 
-	virtual void Save() const = 0;
-	virtual void Load() = 0;
+	virtual int GetBytesPerRow() const { return m_BytesPerRow; }
+	virtual int GetBytesPerRecord() const { return m_BytesPerRecord; }
+	virtual int GetBytesPerPage() const { return m_PageFactory->GetByterPerPage(); }
 
-	virtual int GetBytesPerPage() const = 0;
-	virtual int GetBytesPerRow() const = 0;
-	virtual int GetBytesPerRecord() const = 0;
+	virtual const EngineHeader& GetHeader() const { return m_Header; }
+	virtual EngineHeader& GetHeader() { return m_Header; }
 
-	virtual const EngineHeader& GetHeader() const = 0;
-	virtual EngineHeader& GetHeader() = 0;
+	virtual std::shared_ptr<IPageFactory>& GetPageFactory() { return m_PageFactory; }
+	virtual std::vector<std::unique_ptr<IPage>>& GetPages() { return m_Pages; }
 
 protected:
 	virtual char* GetRecordAt(int index) = 0;
 	virtual char* FindRecordById(int id) = 0;
+
+private:
+	EngineHeader m_Header;
+	int m_BytesPerRecord;
+	int m_BytesPerRow;  // bytesPerRow - bytesPerRecord = flagBytes.
+
+	std::shared_ptr<IPageFactory> m_PageFactory;
+	std::vector<std::unique_ptr<IPage>> m_Pages;
 };
 
 
@@ -80,25 +91,10 @@ public:
 	InMemoryStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory);
 	virtual ~InMemoryStorageEngine();
 
-	virtual void Save() const override;
-	virtual void Load() override;
-
-	virtual int GetBytesPerRow() const override { return m_BytesPerRow; }
-	virtual int GetBytesPerRecord() const override { return m_BytesPerRecord; }
-	virtual int GetBytesPerPage() const override { return m_PageFactory->GetByterPerPage(); }
-
-	virtual const EngineHeader& GetHeader() const { return m_Header; }
-	virtual EngineHeader& GetHeader() { return m_Header; }
-
 protected:
 	virtual char* GetRecordAt(int index) override;
 	virtual char* FindRecordById(int id) override;
-	virtual std::unique_ptr<IPage>& LoadPage(int index);
 
 private:
-	EngineHeader m_Header;
-	int m_BytesPerRecord;
-	int m_BytesPerRow;  // bytesPerRow - bytesPerRecord = flagBytes.
-	std::shared_ptr<IPageFactory> m_PageFactory;
-	std::vector<std::unique_ptr<IPage>> m_Pages;
+	virtual std::unique_ptr<IPage>& LoadPage(int index);
 };

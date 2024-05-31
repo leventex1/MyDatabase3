@@ -89,19 +89,10 @@ int main()
 			std::make_shared<ConditionOperand>(condition3)
 		);
 
-		std::function<bool(const char*)> compiledCondition = condition->Compile(users);
-
-		auto selections = db->Select("users");
-		for (int i = 0; i < selections.size(); i++)
+		auto res = db->SelectWhere("users", condition);
+		for (auto record : res)
 		{
-			const Record& r = selections[i];
-			r.Print();
-			char* data = RecordsToBytes(r, users.GetBytes());
-
-			std::cout << "condition: " << compiledCondition(data) << std::endl;
-
-			delete[] data;
-			std::cout << std::endl;
+			record.Print();
 		}
 
 

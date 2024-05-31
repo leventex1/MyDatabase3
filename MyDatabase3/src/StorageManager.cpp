@@ -32,6 +32,13 @@ std::vector<Record> StorageManager::Select(const Table& table)
 	return engine->GetRecords(table);
 }
 
+std::vector<Record> StorageManager::Select(const Table& table, const std::function<bool(const char*)>& condition)
+{
+	std::unique_ptr<StorageEngine>& engine = GetStorageEngine(table.GetName());
+
+	return engine->GetRecords(table, condition);
+}
+
 Record StorageManager::Select(const Table& table, int id)
 {
 	std::unique_ptr<StorageEngine>& engine = GetStorageEngine(table.GetName());

@@ -73,7 +73,7 @@ std::vector<Record> Database::SelectWhere(const std::string& tableName, const st
 
 	auto compiledCondition = condition->Compile(*table);
 
-	return { };
+	return m_StorageManager->Select(*table, compiledCondition);
 }
 
 void Database::Update(const std::string& tableName, const Record& record, int id)

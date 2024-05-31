@@ -3,6 +3,12 @@
 #include "FileManager.h"
 
 
+StorageEngine::StorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory, const EngineHeader& engineHeader)
+	: m_PageFactory(pageFactory), m_BytesPerRecord(bytesPerRecord), m_Header(engineHeader)
+{
+	m_BytesPerRow = bytesPerRecord + 1;  // 1 flag byte.
+}
+
 void StorageEngine::AddRecord(const Record& record)
 {
 	// Record's first attribute is the ID (int). [ (int*)((char*)data + 0) <-- id ]
@@ -56,6 +62,26 @@ std::vector<Record> StorageEngine::GetRecords(const Table& table)
 	return records;
 }
 
+std::vector<Record> StorageEngine::GetRecords(const Table& table, const std::function<bool(const char*)>& condition)
+{
+	std::vector<Record> records;
+
+	int maxNumRecordsPerPage = GetBytesPerPage() / (GetBytesPerRow());
+	int numPages = GetHeader().NumPages;
+	for (int i = 0; i < numPages * maxNumRecordsPerPage; ++i)
+	{
+		char* record = GetRecordAt(i);
+		char* flag = record + GetBytesPerRecord();
+		if (*flag == 1 && condition(record))
+		{
+			RecordBuilder builder(table, record);
+			records.push_back(builder.GetRecord());
+		}
+	}
+
+	return records;
+}
+
 void StorageEngine::Update(const Record& record, int id)
 {
 	char* data = FindRecordById(id);
@@ -80,20 +106,11 @@ void StorageEngine::DeleteRecord(int id)
 
 
 InMemoryStorageEngine::InMemoryStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory)
-	: m_PageFactory(pageFactory), m_BytesPerRecord(bytesPerRecord)
+	: StorageEngine(bytesPerRecord, pageFactory, EngineHeader())
 {
-	m_BytesPerRow = bytesPerRecord + 1;  // 1 flag byte.
 }
 
 InMemoryStorageEngine::~InMemoryStorageEngine()
-{
-}
-
-void InMemoryStorageEngine::Save() const
-{
-}
-
-void InMemoryStorageEngine::Load()
 {
 }
 
@@ -124,15 +141,15 @@ char* InMemoryStorageEngine::FindRecordById(int id)
 
 std::unique_ptr<IPage>& InMemoryStorageEngine::LoadPage(int index)
 {
-	for (std::unique_ptr<IPage>& page : m_Pages)
+	for (std::unique_ptr<IPage>& page : GetPages())
 	{
 		if (page->GetHeader().PageIndex == index)
 			return page;
 	}
 
-	m_PageFactory->ConstructPage();
-	m_Pages.push_back(m_PageFactory->GetPage());
-	std::unique_ptr<IPage>& newPage = m_Pages[m_Pages.size() - 1];
+	GetPageFactory()->ConstructPage();
+	GetPages().push_back(GetPageFactory()->GetPage());
+	std::unique_ptr<IPage>& newPage = GetPages()[GetPages().size() - 1];
 	newPage->GetHeader().PageIndex = index;
 
 	GetHeader().NumPages++;

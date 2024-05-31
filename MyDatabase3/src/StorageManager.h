@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "StorageEngine.h"
+#include <functional>
 
 
 class StorageManager
@@ -28,6 +29,7 @@ public:
 		Select every record from the store.
 	*/
 	virtual std::vector<Record> Select(const Table& table);
+	virtual std::vector<Record> Select(const Table& table, const std::function<bool(const char*)>& condition);
 	
 	/*
 		Assumes table exists in store.
