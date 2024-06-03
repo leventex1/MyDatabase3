@@ -72,8 +72,11 @@ public:
 	virtual std::vector<std::unique_ptr<IPage>>& GetPages() { return m_Pages; }
 
 protected:
-	virtual char* GetRecordAt(int index) = 0;
-	virtual char* FindRecordById(int id) = 0;
+	virtual char* GetRecordAt(int index);
+	virtual char* FindRecordById(int id);
+
+	virtual std::unique_ptr<IPage>& LoadPage(int index) = 0;
+
 
 private:
 	EngineHeader m_Header;
@@ -89,12 +92,20 @@ class InMemoryStorageEngine : public StorageEngine
 {
 public:
 	InMemoryStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory);
-	virtual ~InMemoryStorageEngine();
 
 protected:
-	virtual char* GetRecordAt(int index) override;
-	virtual char* FindRecordById(int id) override;
+	virtual std::unique_ptr<IPage>& LoadPage(int index) override;
+};
+
+
+class RegularStorageEngine : public StorageEngine
+{
+public:
+	RegularStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory /*, */);
+
+protected:
+	virtual std::unique_ptr<IPage>& LoadPage(int index) override;
 
 private:
-	virtual std::unique_ptr<IPage>& LoadPage(int index);
 };
+

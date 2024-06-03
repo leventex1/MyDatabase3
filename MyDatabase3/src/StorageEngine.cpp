@@ -104,17 +104,7 @@ void StorageEngine::DeleteRecord(int id)
 	}
 }
 
-
-InMemoryStorageEngine::InMemoryStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory)
-	: StorageEngine(bytesPerRecord, pageFactory, EngineHeader())
-{
-}
-
-InMemoryStorageEngine::~InMemoryStorageEngine()
-{
-}
-
-char* InMemoryStorageEngine::GetRecordAt(int index)
+char* StorageEngine::GetRecordAt(int index)
 {
 	int maxNumRecordsPerPage = GetBytesPerPage() / (GetBytesPerRow());
 	int PageIndex = index / maxNumRecordsPerPage;
@@ -125,18 +115,24 @@ char* InMemoryStorageEngine::GetRecordAt(int index)
 	return page->GetData() + IndexInPage * (GetBytesPerRow());
 }
 
-char* InMemoryStorageEngine::FindRecordById(int id)
+char* StorageEngine::FindRecordById(int id)
 {
 	int maxNumRecordsPerPage = GetBytesPerPage() / (GetBytesPerRow());
 	int PageIndex = id / maxNumRecordsPerPage;
 	int IndexInPage = id % maxNumRecordsPerPage;
 
-	if(PageIndex >= GetHeader().NumPages)
+	if (PageIndex >= GetHeader().NumPages)
 		throw StorageEnginePageIndexOutOfBoundException();
 
 	std::unique_ptr<IPage>& page = LoadPage(PageIndex);
 
 	return page->GetData() + IndexInPage * (GetBytesPerRow());
+}
+
+
+InMemoryStorageEngine::InMemoryStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory)
+	: StorageEngine(bytesPerRecord, pageFactory, EngineHeader())
+{
 }
 
 std::unique_ptr<IPage>& InMemoryStorageEngine::LoadPage(int index)
@@ -156,3 +152,15 @@ std::unique_ptr<IPage>& InMemoryStorageEngine::LoadPage(int index)
 
 	return newPage;
 }
+
+
+RegularStorageEngine::RegularStorageEngine(int bytesPerRecord, const std::shared_ptr<IPageFactory>& pageFactory /*, */)
+	: StorageEngine(bytesPerRecord, pageFactory, EngineHeader())
+{
+}
+
+std::unique_ptr<IPage>& RegularStorageEngine::LoadPage(int index)
+{
+
+}
+

@@ -1,42 +1,22 @@
 #pragma once
 #include <string>
+#include "FileIO.h"
 #include "Schema.h"
-#include "DBexceptions.h"
-
-
-class FileManagerFileDoesNotExistsException : public DatabaseException
-{
-public:
-	FileManagerFileDoesNotExistsException() : DatabaseException("File does not exits!") { }
-};
 
 
 class FileManager
 {
-private:
-	FileManager();
-	~FileManager();
 public:
-	static FileManager* GetInstance();
+	FileManager(const std::string& rootPath, const Schema& schema, std::unique_ptr<IFileIO>& fileIO);
+	virtual ~FileManager() = default;
 
-	void SetDatabaseRootPath(const std::string& rootPath, const std::string& dbName);
+	virtual std::string ReadPage(const std::string& tableName, int pageIndex) const;
+	virtual void WritePage(const std::string& tableName, int pageIndex, const std::string& content) const;
 
-	bool CheckDBExists();
-
-	void BuildDBFolderStructure(const Schema& schema);
-	void SaveDBSchema(const Schema& schema) const;
-	Schema LoadDBSchema() const;
-
-	void WriteBinaryFile(const std::string& tableName, const std::string& fileName, const char* data, size_t numBytes) const;
-	void ReadBinaryFile(const std::string& tableName, const std::string& fileName, char* data, size_t numBytes) const;
-
-	void WritePageData(const std::string& tableName, int index, const char* data, size_t numBytes) const;
-	void ReadPageData(const std::string& tableName, int index, char* data, size_t numBytes) const;
-
-	void DeleteDiatabase() const;
+	virtual std::string ReadHeader(const std::string& tableName) const;
+	virtual void WriteHeader(const std::string& tableName, const std::string& content) const;
 
 private:
-	static FileManager* s_Instance;
-
-	std::string m_DatabaseRootPath;
+	std::string m_RootPath;
+	std::unique_ptr<IFileIO> m_FileIO;
 };

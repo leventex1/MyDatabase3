@@ -17,15 +17,14 @@ public:
 
 	/*
 		path: "path/to/folder"
-		name: "filename"
+		name: "filename" without extension
 		content: actual bytes.
 	*/
 	virtual void WriteFile(const std::string& path, const std::string& name, const std::string& content) const = 0;
 
 	/*
 		path: "path/to/folder"
-		name: "filename"
-		content: actual bytes.
+		name: "filename" without extension
 
 		returns buffer of the bytes.
 	*/

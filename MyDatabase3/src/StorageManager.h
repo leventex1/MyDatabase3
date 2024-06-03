@@ -6,6 +6,7 @@
 #include <vector>
 #include "StorageEngine.h"
 #include <functional>
+#include "FileManager.h"
 
 
 class StorageManager
@@ -69,4 +70,19 @@ public:
 	virtual void BuildStorage(const Schema& schema) override;
 	virtual void Commit() override;
 	virtual void DropAll() override;
+};
+
+
+class RegularStorageManager : public StorageManager
+{
+public:
+	RegularStorageManager(const std::shared_ptr<FileManager>& fileManager);
+	virtual ~RegularStorageManager() = default;
+
+	virtual void BuildStorage(const Schema& schema) override;
+	virtual void Commit() override;
+	virtual void DropAll() override;
+
+private:
+	std::shared_ptr<FileManager> m_FileManager;
 };

@@ -136,6 +136,7 @@
     <ClCompile Include="src\FileIO.cpp" />
     <ClCompile Include="src\FileManager.cpp" />
     <ClCompile Include="src\Page.cpp" />
+    <ClCompile Include="src\Serializer.cpp" />
     <ClCompile Include="src\StorageEngine.cpp" />
     <ClCompile Include="src\Column.cpp" />
     <ClCompile Include="src\Database.cpp" />
@@ -154,9 +155,11 @@
     <ClInclude Include="src\FileIO.h" />
     <ClInclude Include="src\FileManager.h" />
     <ClInclude Include="src\Page.h" />
+    <ClInclude Include="src\PageLoader.h" />
     <ClInclude Include="src\Record.h" />
     <ClInclude Include="src\RecordBuilder.h" />
     <ClInclude Include="src\Schema.h" />
+    <ClInclude Include="src\Serializer.h" />
     <ClInclude Include="src\StorageEngine.h" />
     <ClInclude Include="src\StorageManager.h" />
     <ClInclude Include="src\DatabaseFactory.h" />

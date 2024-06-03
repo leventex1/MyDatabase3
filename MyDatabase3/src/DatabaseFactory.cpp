@@ -1,4 +1,5 @@
 #include "DatabaseFactory.h"
+#include "FileManager.h"
 #include "DBexceptions.h"
 
 
@@ -17,7 +18,11 @@ void DatabaseFactory::BuildDatabaseType(DatabaseType type, const Schema& schema)
 	{
 		case DatabaseType::Regular:
 		{
-			throw DatabaseException("Regular Database not implemented yet!");
+			std::shared_ptr<FileManager> fileManager = std::make_shared<FileManager>("db", schema, std::make_unique<BinaryFileIO>());
+			std::shared_ptr<StorageManager> storageManager = std::make_shared<RegularStorageManager>(fileManager);
+			storageManager->BuildStorage(schema);
+			m_Database = std::make_unique<Database>(schema, storageManager);
+			//throw DatabaseException("Regular Database not implemented yet!");
 			break;
 		}
 		case DatabaseType::InMemory:

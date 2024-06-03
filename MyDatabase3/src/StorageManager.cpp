@@ -2,6 +2,7 @@
 #include "RecordBuilder.h"
 #include "DBexceptions.h"
 #include "FileManager.h"
+#include "Serializer.h"
 
 
 std::unique_ptr<StorageEngine>& StorageManager::GetStorageEngine(const std::string& tableName)
@@ -125,6 +126,46 @@ void InMemoryStorageManager::Commit()
 }
 
 void InMemoryStorageManager::DropAll()
+{
+	m_Store.clear();
+}
+
+
+RegularStorageManager::RegularStorageManager(const std::shared_ptr<FileManager>& fileManager)
+	: m_FileManager(fileManager)
+{
+}
+
+void RegularStorageManager::BuildStorage(const Schema& schema)
+{
+	m_Store.clear();
+
+	StorageEngineHeaderSerializer headerSerializer(1);
+
+	for (const Table& table : schema.GetTables())
+	{
+		auto& engine = m_Store[table.GetName()] = std::make_unique<RegularStorageEngine>(table.GetBytes(), std::make_shared<DefaultPageFactory>(4096));
+
+		try
+		{
+			std::string engineHeaderContent = m_FileManager->ReadHeader(table.GetName());
+			EngineHeader engineHeader = headerSerializer.Deserialize(engineHeaderContent);
+			engine->GetHeader() = engineHeader;
+		}
+		catch (const FileIOException& e) 
+		{ 
+			std::string engineHeaderContent = headerSerializer.Serialize(engine->GetHeader());
+			m_FileManager->WriteHeader(table.GetName(), engineHeaderContent);
+		}
+
+	}
+}
+
+void RegularStorageManager::Commit()
+{
+}
+
+void RegularStorageManager::DropAll()
 {
 	m_Store.clear();
 }
